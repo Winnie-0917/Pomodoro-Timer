@@ -130,12 +130,23 @@ function stopAllAudio(){
 	}catch(e){}
 	try{
 		if (mediaElement){
+			// Stop playback and clear source
 			mediaElement.pause();
-			if (mediaSourceNode) mediaSourceNode.disconnect();
+			mediaElement.src = ''; // Clear source to release file
+			mediaElement.load(); // Reset audio element
+			
+			// Disconnect WebAudio nodes
+			if (mediaSourceNode) {
+				mediaSourceNode.disconnect();
+				mediaSourceNode = null;
+			}
+			
+			// Remove all event listeners by creating new element
 			mediaElement = null;
-			mediaSourceNode = null;
 		}
-	}catch(e){}
+	}catch(e){
+		console.warn('Error stopping audio:', e);
+	}
 }
 
 function resumeAudio(){
@@ -392,18 +403,28 @@ youtubeLoadBtn.addEventListener('click', async ()=>{
 		const data = await resp.json();
 		if (!data || !data.file) throw new Error('未收到檔案路徑');
 
-		// Keep default.mp3 playing until new audio is ready
-		// Don't stop existing audio yet - wait until new one is loaded
+		// Stop old audio immediately to release file lock before new download
+		// This prevents file locking issues when downloading the second music
+		stopAllAudio();
+		// Wait a bit to ensure file is released
+		await new Promise(resolve => setTimeout(resolve, 100));
+		
 		ensureAudio();
 
 		// Use absolute URL if needed (in case of CORS issues)
-		const audioUrl = data.file.startsWith('http') ? data.file : 
+		// Add timestamp to prevent browser cache from using old file
+		const baseUrl = data.file.startsWith('http') ? data.file : 
 			(SERVER_URL + data.file);
+		const audioUrl = `${baseUrl}?t=${Date.now()}`;
+		
+		console.log('Loading audio from:', audioUrl);
 		
 		// Create new audio element for the YouTube MP3
-		const newMediaElement = new Audio(audioUrl);
+		const newMediaElement = new Audio();
 		newMediaElement.loop = true;
 		newMediaElement.crossOrigin = 'anonymous';
+		// Set src after creating element to ensure fresh load
+		newMediaElement.src = audioUrl;
 		
 		// Prevent automatic fallback to white noise on playback errors
 		newMediaElement.addEventListener('error', (e) => {
@@ -413,18 +434,32 @@ youtubeLoadBtn.addEventListener('click', async ()=>{
 
 		// Wait for the new audio to be ready before switching
 		await new Promise((resolve, reject) => {
-			newMediaElement.addEventListener('canplaythrough', resolve, { once: true });
+			const timeout = setTimeout(() => {
+				reject(new Error('音訊載入超時'));
+			}, 30000); // 30秒超時
+			
+			newMediaElement.addEventListener('canplaythrough', () => {
+				clearTimeout(timeout);
+				resolve();
+			}, { once: true });
+			
 			newMediaElement.addEventListener('error', (e) => {
+				clearTimeout(timeout);
 				console.error('Audio loading error:', e);
 				reject(new Error('無法載入音訊檔案'));
-			});
-			// Start loading
+			}, { once: true });
+			
+			// Start loading - this will trigger the download
 			newMediaElement.load();
 		});
 
 		// Now that new audio is ready, stop old audio and switch
 		stopAllAudio();
 		
+		// Wait a moment to ensure old audio is fully released
+		await new Promise(resolve => setTimeout(resolve, 50));
+		
+		// Set the new media element
 		mediaElement = newMediaElement;
 		
 		// Prevent audio from ending and switching to white noise
@@ -438,6 +473,12 @@ youtubeLoadBtn.addEventListener('click', async ()=>{
 		});
 		
 		// Connect to WebAudio gain node for volume control
+		// Disconnect old source if exists
+		if (mediaSourceNode) {
+			try {
+				mediaSourceNode.disconnect();
+			} catch(e) {}
+		}
 		mediaSourceNode = audioCtx.createMediaElementSource(mediaElement);
 		mediaSourceNode.connect(gainNode);
 

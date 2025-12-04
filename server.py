@@ -53,6 +53,10 @@ def serve_upload(filename):
     response = send_from_directory(UPLOAD_DIR, filename)
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Content-Type'] = 'audio/mpeg'
+    # Prevent caching to ensure fresh file is loaded
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
     return response
 
 @app.route('/default.mp3')

@@ -1,6 +1,7 @@
 import yt_dlp
 import os
 import shutil
+import time
 import traceback
 
 def find_ffmpeg():
@@ -29,37 +30,36 @@ def find_ffmpeg():
 
     return None
 
-def get_next_number(folder_path):
-    """
-    檢查資料夾中現有的 mp3 檔案，找出最大的數字編號，並回傳下一個編號。
-    如果資料夾是空的，回傳 1。
-    """
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        return 1
-
-    max_num = 0
-    # 掃描資料夾內所有檔案
-    for filename in os.listdir(folder_path):
-        if filename.endswith(".mp3"):
-            # 取得檔名 (不含副檔名)
-            name_part = os.path.splitext(filename)[0]
-            # 檢查檔名是否純為數字
-            if name_part.isdigit():
-                num = int(name_part)
-                if num > max_num:
-                    max_num = num
-    
-    return max_num + 1
-
 def download_youtube_mp3(video_url):
     output_folder = "upload"
     
-    # 取得下一個編號
-    next_num = get_next_number(output_folder)
+    # 確保 upload 資料夾存在
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
     
-    # 設定存檔路徑格式: mp3/編號.副檔名 (例如 mp3/1.webm，之後會被轉為 mp3/1.mp3)
-    save_path = os.path.join(output_folder, f"{next_num}.%(ext)s")
+    # 使用臨時檔名下載，避免檔案鎖定問題
+    # 下載完成後再重命名為 1.mp3
+    temp_save_path = os.path.join(output_folder, "temp.%(ext)s")
+    final_mp3_path = os.path.join(output_folder, "1.mp3")
+    
+    # 嘗試刪除舊的 1.mp3（如果存在且未被鎖定）
+    if os.path.exists(final_mp3_path):
+        try:
+            os.remove(final_mp3_path)
+            print(f"已刪除舊檔案: {final_mp3_path}")
+        except PermissionError:
+            # 如果檔案被鎖定，嘗試重命名為備份檔
+            backup_path = os.path.join(output_folder, f"1_backup_{int(time.time())}.mp3")
+            try:
+                os.rename(final_mp3_path, backup_path)
+                print(f"已將舊檔案重命名為: {backup_path}")
+            except Exception as e:
+                print(f"警告：無法處理舊檔案 {final_mp3_path}: {e}")
+        except Exception as e:
+            print(f"警告：無法刪除舊檔案 {final_mp3_path}: {e}")
+    
+    # 使用臨時檔名下載
+    save_path = temp_save_path
 
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -68,7 +68,7 @@ def download_youtube_mp3(video_url):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'outtmpl': save_path, # 使用我們設定好的編號路徑
+        'outtmpl': save_path, # 固定使用 1.mp3 作為檔名
         'quiet': False,
         'noplaylist': True,  # 只下載單個視頻，不允許播放列表
         'extract_flat': False,  # 確保提取完整信息
@@ -77,7 +77,7 @@ def download_youtube_mp3(video_url):
 
 
     print(f"正在下載: {video_url}")
-    print(f"預計存檔名稱: {output_folder}/{next_num}.mp3")
+    print(f"預計存檔名稱: {output_folder}/1.mp3")
 
     # Locate ffmpeg; if found, pass its directory to yt-dlp via 'ffmpeg_location'
     ffmpeg_path = find_ffmpeg()
@@ -92,12 +92,40 @@ def download_youtube_mp3(video_url):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
 
-        mp3_path = os.path.join(output_folder, f"{next_num}.mp3")
-        if not os.path.exists(mp3_path):
-            raise RuntimeError(f'Download finished but expected mp3 not found at {mp3_path}')
+        # 臨時檔名（可能是 temp.webm 或 temp.m4a，之後轉為 temp.mp3）
+        temp_mp3_path = os.path.join(output_folder, "temp.mp3")
+        
+        # 檢查臨時檔案是否存在
+        if not os.path.exists(temp_mp3_path):
+            raise RuntimeError(f'Download finished but expected temp mp3 not found at {temp_mp3_path}')
+        
+        # 如果最終檔案存在且被鎖定，先嘗試刪除
+        if os.path.exists(final_mp3_path):
+            try:
+                os.remove(final_mp3_path)
+            except PermissionError:
+                # 如果無法刪除，使用重命名策略
+                backup_path = os.path.join(output_folder, f"1_backup_{int(time.time())}.mp3")
+                try:
+                    if os.path.exists(backup_path):
+                        os.remove(backup_path)
+                    os.rename(final_mp3_path, backup_path)
+                except:
+                    pass
+        
+        # 將臨時檔案重命名為最終檔名
+        try:
+            os.rename(temp_mp3_path, final_mp3_path)
+        except Exception as e:
+            # 如果重命名失敗，嘗試複製
+            shutil.copy2(temp_mp3_path, final_mp3_path)
+            os.remove(temp_mp3_path)
+        
+        if not os.path.exists(final_mp3_path):
+            raise RuntimeError(f'Failed to create final mp3 at {final_mp3_path}')
 
-        print(f"成功！檔案已儲存於 '{mp3_path}'")
-        return mp3_path
+        print(f"成功！檔案已儲存於 '{final_mp3_path}'")
+        return final_mp3_path
 
     except Exception as e:
         # Print traceback for server logs and re-raise
