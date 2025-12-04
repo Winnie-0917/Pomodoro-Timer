@@ -55,7 +55,7 @@
    ```
 
 3. **確認 FFmpeg**
-   - 專案已包含 `ffmpeg.exe`，無需額外安裝
+   - 確保專案已包含 `ffmpeg.exe`
    - 或確保 FFmpeg 在系統 PATH 中
 
 ### 啟動伺服器
@@ -96,10 +96,10 @@ Pomodoro-Timer/
 ├── index.css           # 樣式表
 ├── index.js            # 前端邏輯
 ├── server.py           # Flask 伺服器
-├── youtube_to_mp3.py  # YouTube 下載轉換
+├── youtube_to_mp3.py   # YouTube 下載轉換
 ├── requirements.txt    # Python 依賴
 ├── default.mp3         # 預設背景音樂
-├── ffmpeg.exe          # FFmpeg 執行檔
+├── ffmpeg.exe          # FFmpeg 執行檔(請自行下載)
 ├── upload/             # 下載的 MP3 存放目錄
 └── README.md           # 說明文件
 ```
@@ -115,7 +115,7 @@ Pomodoro-Timer/
 
 ### 環境變數
 
-無需額外環境變數設定。
+.../ffmpeg/bin
 
 ### 除錯模式
 
