@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Pomodoro Timer</title>
+		<link rel="stylesheet" href="index.css">
+	</head>
+	<body>
+		<div class="bg"></div>
+		<!-- canvas for subtle particles / bokeh above the gradient but below content -->
+		<canvas id="bgCanvas" aria-hidden="true"></canvas>
+		<main class="app">
+			<header class="header">
+				<h1>Pomodoro Timer</h1>
+				<p class="sub">極簡番茄鐘 · 25:00 工作 / 05:00 休息 · 放鬆背景聲音</p>
+			</header>
+
+			<section class="timer-wrap">
+				<svg class="progress-ring" width="220" height="220" viewBox="0 0 220 220">
+					<circle class="ring-bg" cx="110" cy="110" r="100" stroke-width="10" fill="none"></circle>
+					<circle class="ring" cx="110" cy="110" r="100" stroke-width="10" fill="none" stroke-linecap="round"></circle>
+				</svg>
+
+				<div class="time-display">
+					<div id="time">25:00</div>
+					<div class="mode-label" id="modeLabel">工作</div>
+				</div>
+			</section>
+
+			<section class="controls">
+				<div class="buttons">
+					<button id="startBtn" class="btn primary">開始</button>
+					<button id="pauseBtn" class="btn">暫停</button>
+					<button id="resetBtn" class="btn">重設</button>
+				</div>
+
+				<div class="presets">
+					<button class="btn small" data-min="25">工作 25</button>
+					<button class="btn small" data-min="50">深度 50</button>
+					<button class="btn small" data-min="5">休息 5</button>
+				</div>
+
+				<div class="audio-controls">
+					<label>YouTube 背景音樂</label>
+					<div class="youtube-input-container">
+						<input id="youtubeUrl" type="text" placeholder="貼上 YouTube URL..." class="youtube-input">
+						<button id="youtubeLoadBtn" class="btn small">載入</button>
+						<div id="youtubeStatus" class="youtube-status"></div>
+					</div>
+
+					<div class="volume">
+						<button id="volumeToggle" class="volume-toggle" title="靜音">
+							<span class="volume-icon">🔊</span>
+						</button>
+						<input id="volumeRange" type="range" min="0" max="100" value="50">
+						<span class="volume-label" id="volumeLabel">50%</span>
+					</div>
+				</div>
+			</section>
+
+			<footer class="footer">
+				<small>提示：你可以上傳自己的 Lo‑Fi 檔案或使用內建白噪音。頁面會在背景淡入動態漸層，保持極簡氛圍。</small>
+			</footer>
+		</main>
+
+		<script src="index.js"></script>
+	</body>
+</html>
