@@ -12,7 +12,7 @@ ENV/
 
 # Upload folder - ignore all contents but keep the folder
 upload/*
-
+!upload/.gitkeep
 # IDE
 .vscode/
 .idea/
