@@ -672,6 +672,45 @@ setTimeout(() => {
 	let DPR = window.devicePixelRatio || 1;
 	let w = 0, h = 0;
 	const particles = [];
+	
+	// 滑鼠位置追蹤（用於推開粒子效果）
+	let mouseX = -1, mouseY = -1;
+	let mouseActive = false;
+	let mouseMoveTimer = null;
+	
+	function handleMouseMove(e) {
+		mouseX = e.clientX;
+		mouseY = e.clientY;
+		mouseActive = true;
+		
+		// 清除計時器
+		if (mouseMoveTimer) {
+			clearTimeout(mouseMoveTimer);
+		}
+		// 滑鼠停止移動一段時間後，停止影響粒子
+		mouseMoveTimer = setTimeout(() => {
+			mouseActive = false;
+		}, 200);
+	}
+	
+	// 監聽滑鼠移動
+	window.addEventListener('mousemove', handleMouseMove, { passive: true });
+	window.addEventListener('mouseleave', () => {
+		mouseActive = false;
+		mouseX = -1;
+		mouseY = -1;
+	}, { passive: true });
+	
+	// 支援觸控
+	window.addEventListener('touchmove', (e) => {
+		if (e.touches.length > 0) {
+			const touch = e.touches[0];
+			handleMouseMove({
+				clientX: touch.clientX,
+				clientY: touch.clientY
+			});
+		}
+	}, { passive: true });
 
 	function resize(){
 		DPR = window.devicePixelRatio || 1;
@@ -690,15 +729,19 @@ setTimeout(() => {
 		const count = Math.max(18, Math.floor(Math.min(w,1400) / 20));
 		for (let i=0;i<count;i++){
 			const size = 6 + Math.random()*36; // some small, some big (bokeh)
+			const baseVx = (Math.random()*0.4 - 0.2) * (size/24);
+			const baseVy = -0.02 - Math.random() * 0.24;
 			particles.push({
 				x: Math.random() * w,
 				y: Math.random() * h,
 				r: size,
 				alpha: 0.03 + Math.random() * 0.08,
-				vx: (Math.random()*0.4 - 0.2) * (size/24),
-				vy: -0.02 - Math.random()*0.24, // drift upward
-				hue: 180 + Math.random()*60, // teal to purple hues
+				vx: baseVx,
+				vy: baseVy, // drift upward
+				hue: 180 + Math.random() * 60, // teal to purple hues
 				sway: Math.random()*0.8,
+				baseVx: baseVx, // 儲存原始速度
+				baseVy: baseVy,
 			});
 		}
 	}
@@ -721,10 +764,42 @@ setTimeout(() => {
 			ctx.fillRect(0,0,w,h);
 		}
 
-		// particles
+		// particles - 受滑鼠影響推開
 		for (let p of particles){
+			// 計算與滑鼠的距離
+			if (mouseActive && mouseX >= 0 && mouseY >= 0) {
+				const dx = p.x - mouseX;
+				const dy = p.y - mouseY;
+				const dist = Math.sqrt(dx * dx + dy * dy);
+				const influenceRadius = 200; // 影響半徑
+				
+				if (dist < influenceRadius && dist > 0) {
+					// 計算推開力度（距離越近，力度越大）
+					const force = (1 - dist / influenceRadius) * 2.5;
+					const angle = Math.atan2(dy, dx);
+					
+					// 推開速度（垂直於滑鼠方向）
+					const pushVx = Math.cos(angle) * force;
+					const pushVy = Math.sin(angle) * force;
+					
+					// 結合原始速度和推開速度
+					p.vx = p.baseVx + pushVx;
+					p.vy = p.baseVy + pushVy;
+				} else {
+					// 遠離滑鼠時，逐漸恢復原始狀態
+					p.vx += (p.baseVx - p.vx) * 0.1;
+					p.vy += (p.baseVy - p.vy) * 0.1;
+				}
+			} else {
+				// 滑鼠不活動時，恢復原始速度
+				p.vx += (p.baseVx - p.vx) * 0.1;
+				p.vy += (p.baseVy - p.vy) * 0.1;
+			}
+			
+			// 更新位置
 			p.x += p.vx * dt * 60 + Math.sin(now/1000 * p.sway) * 0.2;
 			p.y += p.vy * dt * 60;
+			
 			// wrap
 			if (p.y < -p.r - 20) p.y = h + p.r + 20;
 			if (p.x < -p.r - 20) p.x = w + p.r + 20;
@@ -735,7 +810,7 @@ setTimeout(() => {
 			ctx.fillStyle = `hsla(${p.hue}, 60%, 65%, ${p.alpha})`;
 			// shadow to get soft edges
 			ctx.shadowColor = `hsla(${p.hue}, 60%, 65%, ${p.alpha})`;
-			ctx.shadowBlur = Math.min(60, p.r*1.8);
+			ctx.shadowBlur = Math.min(60, p.r * 1.8);
 			ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
 			ctx.fill();
 			ctx.shadowBlur = 0;
