@@ -64,6 +64,8 @@ body{
 .btn.pressed{transform:translateY(2px);box-shadow:0 1px 4px rgba(0,0,0,0.12)}
 .btn.small{padding:6px 10px;font-size:14px}
 .btn.small:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.2)}
+.btn.small:active{transform:translateY(1px) scale(0.98);box-shadow:0 1px 3px rgba(0,0,0,0.15);background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.15)}
+.btn.small.pressed{transform:translateY(1px) scale(0.98);box-shadow:0 1px 3px rgba(0,0,0,0.15);background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.15)}
 .btn.primary{background:linear-gradient(90deg,#ffb86b,#ff7ab6);color:#111;border:none;box-shadow:0 2px 8px rgba(255,184,107,0.3)}
 .btn.primary:hover{background:linear-gradient(90deg,#ffc97a,#ff8bc5);transform:translateY(-2px);box-shadow:0 4px 16px rgba(255,184,107,0.5)}
 .btn.primary:active{transform:translateY(0px);box-shadow:0 2px 8px rgba(255,184,107,0.3)}
