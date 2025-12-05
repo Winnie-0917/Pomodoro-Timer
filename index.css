@@ -60,7 +60,19 @@ body{
 .buttons{display:flex;gap:10px}
 .btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);color:#fff;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;transition:all 0.2s ease;position:relative;overflow:hidden}
 .btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.2);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.2)}
-.btn:active{transform:translateY(0px);box-shadow:0 2px 6px rgba(0,0,0,0.15)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 4px rgba(0,0,0,0.12)}
+.btn.pressed{transform:translateY(2px);box-shadow:0 1px 4px rgba(0,0,0,0.12)}
+
+/* Bounce animation: quick upward flick then settle down to pressed position */
+@keyframes btnBounce {
+	0% { transform: translateY(-8px); }
+	55% { transform: translateY(4px); }
+	100% { transform: translateY(2px); }
+}
+
+.btn.bounce {
+	animation: btnBounce 220ms cubic-bezier(.2,.8,.2,1);
+}
 .btn.small{padding:6px 10px;font-size:14px}
 .btn.small:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.2)}
 .btn.primary{background:linear-gradient(90deg,#ffb86b,#ff7ab6);color:#111;border:none;box-shadow:0 2px 8px rgba(255,184,107,0.3)}

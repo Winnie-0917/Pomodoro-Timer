@@ -26,6 +26,8 @@ let timerId = null;
 let isRunning = false;
 let isMuted = false;
 let previousVolume = 50;
+// Timestamp of last click sound (ms) to prevent duplicate play on press+release
+let lastClickSoundTime = 0;
 
 // Progress ring setup
 const R = 100;
@@ -86,6 +88,8 @@ function pauseTimer(){
 function resetTimer(){
 	pauseTimer();
 	setMode('work', WORK_MIN);
+	// Always play a feedback sound on reset, even if nothing changed
+	try { playClickSound(); } catch(e) { console.warn('reset click sound failed', e); }
 }
 
 startBtn.addEventListener('click', startTimer);
@@ -160,6 +164,97 @@ function suspendAudio(){
 	if (audioCtx.state === 'running') audioCtx.suspend();
 	if (mediaElement && !mediaElement.paused) mediaElement.pause();
 }
+
+// --- Click sound ---
+// Play a short click using WebAudio. Respects current mute/volume settings.
+function playClickSound(){
+	try{
+		// Avoid duplicate triggers (press + release) by short throttle
+		const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+		if (nowMs - lastClickSoundTime < 160) return; // 160ms window
+		lastClickSoundTime = nowMs;
+
+		// Respect mute/volume
+		if (typeof isMuted !== 'undefined' && isMuted) return;
+		const volVal = Number(volumeRange.value || 0);
+		if (volVal <= 0) return;
+
+		ensureAudio();
+		// If the audio context is suspended (for example after suspendAudio()), try to resume
+		if (audioCtx && audioCtx.state === 'suspended') {
+			audioCtx.resume().catch(() => {});
+		}
+		if (!audioCtx || !gainNode) return;
+
+		const now = audioCtx.currentTime;
+		// Create a lower, richer click by layering two short oscillators
+		const uiVol = (volVal / 100) * 0.18; // lower fraction so click isn't too loud
+
+		// Low body oscillator (sine) for depth
+		const lowOsc = audioCtx.createOscillator();
+		const lowGain = audioCtx.createGain();
+		lowOsc.type = 'sine';
+		lowOsc.frequency.setValueAtTime(180, now);
+		lowGain.gain.setValueAtTime(0.00001, now);
+		lowGain.gain.linearRampToValueAtTime(uiVol, now + 0.003);
+		lowGain.gain.exponentialRampToValueAtTime(0.00001, now + 0.22);
+
+		// High transient oscillator (triangle) for attack
+		const hiOsc = audioCtx.createOscillator();
+		const hiGain = audioCtx.createGain();
+		hiOsc.type = 'triangle';
+		hiOsc.frequency.setValueAtTime(880, now);
+		hiGain.gain.setValueAtTime(uiVol * 0.45, now);
+		hiGain.gain.exponentialRampToValueAtTime(0.00001, now + 0.06);
+
+		lowOsc.connect(lowGain); lowGain.connect(gainNode);
+		hiOsc.connect(hiGain); hiGain.connect(gainNode);
+
+		lowOsc.start(now); lowOsc.stop(now + 0.24);
+		hiOsc.start(now); hiOsc.stop(now + 0.06);
+
+		lowOsc.onended = () => { try{ lowOsc.disconnect(); lowGain.disconnect(); }catch(e){} };
+		hiOsc.onended = () => { try{ hiOsc.disconnect(); hiGain.disconnect(); }catch(e){} };
+	}catch(e){
+		console.warn('click sound error', e);
+	}
+}
+
+// Bind click sound to interactive controls (fast feedback)
+function bindClickSounds(){
+	// Use pointerdown for snappier feedback on touch/devices
+	const buttons = document.querySelectorAll('button, [role="button"], .youtube-input, input[type=range], .volume-toggle');
+	buttons.forEach(el => {
+		// Play sound on pointerdown to feel instant
+		el.addEventListener('pointerdown', (ev) => {
+			// Only left button or touch
+			if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+			playClickSound();
+		}, { passive: true });
+	});
+}
+
+// Add explicit pressed class for preset buttons so touch devices show same press effect
+function bindPresetPressEffect(){
+	const presetBtns = document.querySelectorAll('.presets .btn');
+	presetBtns.forEach(btn => {
+		btn.addEventListener('pointerdown', (ev) => {
+			if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+			btn.classList.add('pressed');
+		}, { passive: true });
+
+		const removePressed = () => btn.classList.remove('pressed');
+		btn.addEventListener('pointerup', removePressed);
+		btn.addEventListener('pointercancel', removePressed);
+		btn.addEventListener('pointerleave', removePressed);
+	});
+}
+
+// Call preset binding after existing bindings
+bindPresetPressEffect();
+
+// Call binding after DOM is ready (this file runs at end of body so elements exist)
+bindClickSounds();
 
 // Load and play default.mp3
 async function loadDefaultAudio(){
