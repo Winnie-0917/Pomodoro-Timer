@@ -84,6 +84,16 @@ def download_youtube_mp3(video_url):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
+        # --- [新增/修改] 記憶體優化設定 ---
+        # 1. 限制緩衝區大小：強制分塊下載 (設定為 1MB)，避免大檔案塞爆 RAM
+        'http_chunk_size': 1048576, 
+        
+        # 2. 不要下載縮圖 (節省極少量的 RAM，不無小補)
+        'writethumbnail': False,
+        
+        # 3. 確保使用硬碟快取而非記憶體
+        'cachedir': False,
+        # -------------------------------
         'outtmpl': save_path,
         'quiet': False,
         'noplaylist': True,
