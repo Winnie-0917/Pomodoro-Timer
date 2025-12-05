@@ -1,12 +1,11 @@
 from flask import Flask, request, jsonify, send_from_directory, abort
 from flask_cors import CORS
 import os
+
+
+# Import the download function
 import youtube_to_mp3
 import traceback
-
-if os.environ.get('YOUTUBE_COOKIES'):
-    with open('cookies.txt', 'w') as f:
-        f.write(os.environ.get('YOUTUBE_COOKIES'))
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 # Enable CORS for all routes
