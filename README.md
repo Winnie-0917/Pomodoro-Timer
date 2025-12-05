@@ -115,7 +115,9 @@ Pomodoro-Timer/
 
 ### 環境變數
 
+```bash
 .../ffmpeg/bin
+```
 
 ### 除錯模式
 
